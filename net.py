@@ -1,0 +1,110 @@
+import subprocess
+import time
+import Adafruit_GPIO.SPI as SPI
+import Adafruit_SSD1306
+import Image
+import ImageDraw
+import ImageFont
+
+# Raspberry Pi pin configuration:
+RST = 24
+
+# 128x64 display with hardware I2C:
+disp = Adafruit_SSD1306.SSD1306_128_64(rst=RST)
+
+# Initialize library.
+disp.begin()
+
+# Clear display.
+disp.clear()
+disp.display()
+
+# Create blank image for drawing.
+# Make sure to create image with mode '1' for 1-bit color.
+width = disp.width
+height = disp.height
+image = Image.new('1', (width, height))
+
+# Get drawing object to draw on image.
+draw = ImageDraw.Draw(image)
+
+# Load default font.
+font = ImageFont.load_default()
+
+#Display Image
+disp.image(image)
+disp.display()
+
+
+print 'Press Ctl-C to exit'
+
+#functions
+def getSnmpData (oid):
+	return subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
+
+def getSnmpInt (oid):
+	data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
+	data = data.split()
+	data = data.pop()
+	return int(data)
+
+def drawBar (x, barHeight):
+	# parameters are x, y, end x, end y 
+	draw.rectangle ((x, height - barHeight, x + 15, height -1), outline=255, fill=255)
+
+def textRate (rate):
+	rate = rate * 8 / 1000
+	if rate < 1000:
+		result = str(round(rate,1)) + ' kbps'
+	else:
+		result = str(round(rate/1000,1)) + ' mbps'
+	return result
+
+#defines
+oidInWan = '1.3.6.1.2.1.2.2.1.10.1'
+oidOutWan = '1.3.6.1.2.1.2.2.1.16.1'
+
+lastInBytes = getSnmpInt (oidInWan);
+lastOutBytes = getSnmpInt (oidOutWan);
+lastTime = time.time()
+
+maxRateIn = 365000
+maxRateOut = 120000
+
+while (1):
+	time.sleep(0.5)
+	draw.rectangle((0, 0, width, height), outline=0, fill=0)
+	
+	now = time.time()
+	elapsed = now - lastTime
+	lastTime = now
+	
+	#calculate rates in and out
+	inBytes = getSnmpInt (oidInWan)
+	currInBytes = (inBytes - lastInBytes) / elapsed
+	lastInBytes = inBytes
+
+	outBytes = getSnmpInt (oidOutWan)
+	currOutBytes = (outBytes - lastOutBytes) / elapsed
+	lastOutBytes = outBytes
+
+	print 'In: ' + str(currInBytes*8/1000) + 'bytes/sec'+ '\t\tOut: ' + str(currOutBytes) + 'bytes/sec'
+
+	#draw graph
+	inHeight = 0.0
+	outHeight = 0.0
+	if currInBytes > 0:	
+		inHeight = float(currInBytes * height / maxRateIn)
+	if currOutBytes > 0:
+		outHeight = float(currOutBytes * height / maxRateOut)
+	drawBar (0, inHeight)
+	drawBar (20, outHeight)
+
+	#write rates
+	draw.text((50,44), textRate(currInBytes), font=font, fill=255)
+        draw.text((50,54), textRate(currOutBytes), font=font, fill=255)
+
+
+	#display
+	disp.image(image)
+	disp.display()
