@@ -36,21 +36,32 @@ disp.image(image)
 disp.display()
 
 
-print 'Press Ctl-C to exit'
+#print 'Press Ctl-C to exit'
 
 #functions
 def getSnmpData (oid):
-	return subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
+	
+	try:
+		data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
+	except subprocess.CalledProcessError as e:
+		data = e
+	else:
+		data = "unhandled error"
+	return data;
 
 def getSnmpInt (oid):
-	data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
-	data = data.split()
-	data = data.pop()
+
+	try:
+		data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
+		data = data.split()
+		data = data.pop()
+	except:
+		data = "0"
 	return int(data)
 
 def drawBar (x, barHeight):
 	# parameters are x, y, end x, end y 
-	draw.rectangle ((x, height - barHeight, x + 15, height -1), outline=255, fill=255)
+	draw.rectangle ((x, height - barHeight, x + 10, height -1), outline=255, fill=255)
 
 def textRate (rate):
 	rate = rate * 8 / 1000
@@ -68,7 +79,7 @@ lastInBytes = getSnmpInt (oidInWan);
 lastOutBytes = getSnmpInt (oidOutWan);
 lastTime = time.time()
 
-maxRateIn = 365000
+maxRateIn = 565000
 maxRateOut = 120000
 
 while (1):
@@ -88,7 +99,7 @@ while (1):
 	currOutBytes = (outBytes - lastOutBytes) / elapsed
 	lastOutBytes = outBytes
 
-	print 'In: ' + str(currInBytes*8/1000) + 'bytes/sec'+ '\t\tOut: ' + str(currOutBytes) + 'bytes/sec'
+	#print 'In: ' + str(round(currInBytes,1)) + 'bytes/sec'+ '\tOut: ' + str(round(currOutBytes,1)) + 'bytes/sec' + '\tElapsed ' + str(round(elapsed,2))
 
 	#draw graph
 	inHeight = 0.0
@@ -98,11 +109,11 @@ while (1):
 	if currOutBytes > 0:
 		outHeight = float(currOutBytes * height / maxRateOut)
 	drawBar (0, inHeight)
-	drawBar (20, outHeight)
+	drawBar (117, outHeight)
 
 	#write rates
-	draw.text((50,44), textRate(currInBytes), font=font, fill=255)
-        draw.text((50,54), textRate(currOutBytes), font=font, fill=255)
+	draw.text((20,44), textRate(currInBytes), font=font, fill=255)
+        draw.text((20,54), textRate(currOutBytes), font=font, fill=255)
 
 
 	#display
