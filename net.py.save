@@ -35,28 +35,16 @@ font = ImageFont.load_default()
 disp.image(image)
 disp.display()
 
-
-#print 'Press Ctl-C to exit'
+print 'Press Ctl-C to exit'
 
 #functions
 def getSnmpData (oid):
-	
-	try:
-		data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
-	except subprocess.CalledProcessError as e:
-		data = e
-	else:
-		data = "unhandled error"
-	return data;
+	return subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
 
 def getSnmpInt (oid):
-
-	try:
-		data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
-		data = data.split()
-		data = data.pop()
-	except:
-		data = "0"
+	data = subprocess.check_output("snmpget -v 1 -c public 192.168.0.1 " + oid, shell = True)
+	data = data.split()
+	data = data.pop()
 	return int(data)
 
 def drawBar (x, barHeight):
@@ -82,15 +70,6 @@ lastTime = time.time()
 maxRateIn = 565000
 maxRateOut = 120000
 
-#timed array vars
-timerTime = time.time()
-highestSpeedIn = 0
-highestSpeedOut = 0
-speedArrayIn = []
-speedArrayOut = []
-inMax = 0
-outMax = 0
-
 while (1):
 	time.sleep(0.5)
 	draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -108,58 +87,22 @@ while (1):
 	currOutBytes = (outBytes - lastOutBytes) / elapsed
 	lastOutBytes = outBytes
 
-	#max rate last 24 hours calculations
-	if currInBytes > highestSpeedIn:
-		highestSpeedIn = currInBytes
-	if currOutBytes > highestSpeedOut:
-		highestSpeedOut = currOutBytes
-
-	if now > timerTime + 3600:
-		print '-----------------------------------------------------------------  time expired'
-		timerTime = now
-
-		speedArrayIn.append (highestSpeedIn)
-		if len (speedArrayIn) > 23:
-			del speedArrayIn[0]
-		inMax = max(speedArrayIn)
-
-		speedArrayOut.append (highestSpeedOut)
-                if len (speedArrayOut) > 23:
-                        del speedArrayOut[0]
-		outMax = max(speedArrayOut)
-
-		highestSpeedIn = 0
-		highestSpeedOut = 0
-
-		#test output
-		for inSpd in speedArrayIn:
-			print '--- ' + str(inSpd)
-		print 'inMax ' + str(inMax)
-
-	#adjust these in each loop in case we find a faster speed
-	inMax = max(inMax, highestSpeedIn)
-	outMax = max(outMax, highestSpeedOut)
-
-	#print str(now) + '    ' + str(timerTime)
-	print 'In: ' + textRate(currInBytes) + '\tOut: ' + textRate(currOutBytes) + '\tElapsed ' + str(round(elapsed,2)) + '\t\tInMax ' + textRate(inMax) + '\tOutMax ' + textRate(outMax)
-	#print 'Hi In ' + str(highestSpeedIn) + '   Hi Out ' + str(highestSpeedOut)
+	print 'In: ' + str(round(currInBytes,1)) + 'bytes/sec'+ '\tOut: ' + str(round(currOutBytes,1)) + 'bytes/sec' + '\tElapsed ' + str(round(elapsed,2))
 
 	#draw graph
 	inHeight = 0.0
 	outHeight = 0.0
 	if currInBytes > 0:	
-		inHeight = float(currInBytes * height / inMax)  #was maxRateIn
+		inHeight = float(currInBytes * height / maxRateIn)
 	if currOutBytes > 0:
-		outHeight = float(currOutBytes * height / outMax)  #was maxRateOut
+		outHeight = float(currOutBytes * height / maxRateOut)
 	drawBar (0, inHeight)
 	drawBar (117, outHeight)
 
 	#write rates
 	draw.text((20,44), textRate(currInBytes), font=font, fill=255)
         draw.text((20,54), textRate(currOutBytes), font=font, fill=255)
-	#max rates
-	draw.text((20,15), textRate(inMax), font=font, fill=255)
-	draw.text((20,25), textRate(outMax), font=font, fill=255)
+
 
 	#display
 	disp.image(image)
